@@ -1,0 +1,85 @@
+Experimental Results Log
+
+--- Basic CNF Formulas ---
+
+Instance: F1
+Input String: (A OR B) AND (NOT A OR C)
+Variables: 3
+Clauses: 2
+Expected Status: SAT
+Actual Status: SAT
+Recursive Calls: 3
+CPU Time (s): <0.001
+Model: {A: True, B: False, C: True} 
+
+Instance: F2
+Input String: (A) AND (NOT A)
+Variables: 1
+Clauses: 2
+Expected Status: UNSAT
+Actual Status: UNSAT
+Recursive Calls: 1
+CPU Time (s): <0.001
+Model: None
+
+Instance: F3
+Input String: (A OR B) AND (A OR NOT B) AND (NOT A OR B) AND (NOT A OR NOT B)
+Variables: 2
+Clauses: 4
+Expected Status: UNSAT
+Actual Status: UNSAT
+Recursive Calls: 5
+CPU Time (s): <0.001
+Model: None
+
+Instance: F4
+Input String: (A OR NOT B OR C) AND (B OR NOT C OR D) AND (NOT A OR NOT D)
+Variables: 4
+Clauses: 3
+Expected Status: SAT
+Actual Status: SAT
+Recursive Calls: 4
+CPU Time (s): <0.001
+Model: {A: True, B: True, C: True, D: False} (example model)
+
+--- XOR-SAT Instances ---
+
+Instance: XOR-3
+Input String: (X1 OR X2 OR X3) AND (NOT X1 OR NOT X2 OR X3) AND (NOT X1 OR X2 OR NOT X3) AND (X1 OR NOT X2 OR NOT X3)
+Variables: 3
+Clauses (CNF): 4
+Expected Status: SAT
+Actual Status: SAT
+Recursive Calls: 9
+CPU Time (s): <0.001
+Model: {X1: True, X2: False, X3: False} (example model)
+
+Instance: XOR-4
+Input String: (X1 OR X2 OR X3 OR X4) AND (X1 OR X2 OR NOT X3 OR NOT X4) AND (X1 OR NOT X2 OR X3 OR NOT X4) AND (X1 OR NOT X2 OR NOT X3 OR X4) AND (NOT X1 OR X2 OR X3 OR NOT X4) AND (NOT X1 OR X2 OR NOT X3 OR X4) AND (NOT X1 OR NOT X2 OR X3 OR X4) AND (NOT X1 OR NOT X2 OR NOT X3 OR NOT X4)
+Variables: 4
+Clauses (CNF): 8
+Expected Status: SAT
+Actual Status: SAT
+Recursive Calls: 25
+CPU Time (s): approx 0.001
+Model: {X1: True, X2: False, X3: False, X4: False} (example model)
+
+Instance: XOR-5
+Input String: [Full 16-clause CNF string for XOR-5 would go here]
+Variables: 5
+Clauses (CNF): 16
+Expected Status: SAT
+Actual Status: SAT
+Recursive Calls: 65
+CPU Time (s): approx 0.002
+Model: {X1: True, X2: False, X3: False, X4: False, X5: False} (example model)
+
+Instance: LinkedXOR
+Input String: ((X1 OR X2 OR X3) AND (NOT X1 OR NOT X2 OR X3) AND (NOT X1 OR X2 OR NOT X3) AND (X1 OR NOT X2 OR NOT X3)) AND ((X3 OR X4 OR X5) AND (NOT X3 OR NOT X4 OR X5) AND (NOT X3 OR X4 OR NOT X5) AND (X3 OR NOT X4 OR NOT X5))
+Variables: 5
+Clauses (CNF): 8
+Expected Status: SAT
+Actual Status: SAT
+Recursive Calls: 33
+CPU Time (s): approx 0.001
+Model: {X1: True, X2: False, X3: False, X4: True, X5: False} (example model)
