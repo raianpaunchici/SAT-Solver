@@ -40,7 +40,7 @@ Expected Status: SAT
 Actual Status: SAT
 Recursive Calls: 4
 CPU Time (s): <0.001
-Model: {A: True, B: True, C: True, D: False} (example model)
+Model: {A: True, B: True, C: True, D: False} 
 
 --- XOR-SAT Instances ---
 
@@ -52,7 +52,7 @@ Expected Status: SAT
 Actual Status: SAT
 Recursive Calls: 9
 CPU Time (s): <0.001
-Model: {X1: True, X2: False, X3: False} (example model)
+Model: {X1: True, X2: False, X3: False} 
 
 Instance: XOR-4
 Input String: (X1 OR X2 OR X3 OR X4) AND (X1 OR X2 OR NOT X3 OR NOT X4) AND (X1 OR NOT X2 OR X3 OR NOT X4) AND (X1 OR NOT X2 OR NOT X3 OR X4) AND (NOT X1 OR X2 OR X3 OR NOT X4) AND (NOT X1 OR X2 OR NOT X3 OR X4) AND (NOT X1 OR NOT X2 OR X3 OR X4) AND (NOT X1 OR NOT X2 OR NOT X3 OR NOT X4)
@@ -62,7 +62,7 @@ Expected Status: SAT
 Actual Status: SAT
 Recursive Calls: 25
 CPU Time (s): approx 0.001
-Model: {X1: True, X2: False, X3: False, X4: False} (example model)
+Model: {X1: True, X2: False, X3: False, X4: False}
 
 Instance: XOR-5
 Input String: [Full 16-clause CNF string for XOR-5 would go here]
@@ -72,7 +72,7 @@ Expected Status: SAT
 Actual Status: SAT
 Recursive Calls: 65
 CPU Time (s): approx 0.002
-Model: {X1: True, X2: False, X3: False, X4: False, X5: False} (example model)
+Model: {X1: True, X2: False, X3: False, X4: False, X5: False} 
 
 Instance: LinkedXOR
 Input String: ((X1 OR X2 OR X3) AND (NOT X1 OR NOT X2 OR X3) AND (NOT X1 OR X2 OR NOT X3) AND (X1 OR NOT X2 OR NOT X3)) AND ((X3 OR X4 OR X5) AND (NOT X3 OR NOT X4 OR X5) AND (NOT X3 OR X4 OR NOT X5) AND (X3 OR NOT X4 OR NOT X5))
@@ -82,4 +82,4 @@ Expected Status: SAT
 Actual Status: SAT
 Recursive Calls: 33
 CPU Time (s): approx 0.001
-Model: {X1: True, X2: False, X3: False, X4: True, X5: False} (example model)
+Model: {X1: True, X2: False, X3: False, X4: True, X5: False} 
