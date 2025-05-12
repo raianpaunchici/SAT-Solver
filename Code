@@ -1,0 +1,377 @@
+import copy
+
+def parse_cnf_string_with_hyphen_negation(formula_string):
+    letter_to_int = {}
+    int_to_letter = {}
+    next_int_var = 1
+    int_clauses = []
+
+    if not isinstance(formula_string, str):
+        raise ValueError("Formula must be a string.")
+
+    if not formula_string.strip():
+        return [], {}, {} 
+
+    clause_strings_raw = formula_string.split(" AND ")
+
+    if not clause_strings_raw or not any(s.strip() for s in clause_strings_raw):
+        if formula_string.strip():
+            raise ValueError("No clauses found. Ensure clauses are separated by 'AND'.")
+        return [], {}, {}
+
+    for clause_str_outer in clause_strings_raw:
+        clause_str = clause_str_outer.strip()
+        
+        if not clause_str: 
+            continue
+
+        if clause_str.startswith("(") and clause_str.endswith(")"):
+            clause_str = clause_str[1:-1].strip()
+        elif ("(" in clause_str or ")" in clause_str) and \
+             not (clause_str.startswith("(") and clause_str.endswith(")") and clause_str.count("(") == clause_str.count(")")):
+            if clause_str.startswith("(") != clause_str.endswith(")"): 
+                raise ValueError(f"Clause string '{clause_str_outer}' appears to have mismatched parentheses.")
+
+        literal_strings_raw = clause_str.split(" OR ")
+        
+        int_clause = []
+        if not literal_strings_raw or not any(s.strip() for s in literal_strings_raw):
+            if clause_str.strip(): 
+                raise ValueError(f"Empty or malformed clause content: '{clause_str_outer}'")
+            else: 
+                continue 
+
+        for lit_str_individual_raw in literal_strings_raw:
+            lit_str_individual = lit_str_individual_raw.strip()
+            if not lit_str_individual:
+                raise ValueError(f"Empty literal found in clause: '{clause_str_outer}'")
+
+            is_negated = False
+            var_letter_part = lit_str_individual
+
+            if lit_str_individual.startswith("-"):
+                is_negated = True
+                var_letter_part = lit_str_individual[1:].strip()
+                if not var_letter_part: 
+                    raise ValueError(f"Invalid negation format in literal: '{lit_str_individual_raw}'")
+            
+            if not var_letter_part.isalpha() or not var_letter_part.isupper() or len(var_letter_part) != 1:
+                raise ValueError(
+                    f"Variable part '{var_letter_part}' must be a single uppercase letter "
+                    f"(derived from literal '{lit_str_individual_raw}')."
+                )
+
+            if var_letter_part not in letter_to_int:
+                letter_to_int[var_letter_part] = next_int_var
+                int_to_letter[next_int_var] = var_letter_part
+                next_int_var += 1
+            
+            int_var = letter_to_int[var_letter_part]
+            int_clause.append(-int_var if is_negated else int_var)
+        
+        if int_clause: 
+            int_clauses.append(int_clause)
+            
+    if not int_clauses and formula_string.strip():
+        return [], {}, {} 
+        
+    return int_clauses, letter_to_int, int_to_letter
+
+def format_assignment_with_letters(int_assignment, int_to_letter_map):
+    if not int_assignment:
+        return {}
+    letter_assignment = {}
+    for int_val_map_key, letter_val_map_value in int_to_letter_map.items():
+        if int_val_map_key in int_assignment:
+            letter_assignment[letter_val_map_value] = int_assignment[int_val_map_key]
+        else:
+            pass 
+
+    for var_int, value in int_assignment.items():
+        if var_int in int_to_letter_map and int_to_letter_map[var_int] not in letter_assignment:
+            letter_assignment[int_to_letter_map[var_int]] = value
+
+    return {k: letter_assignment[k] for k in sorted(letter_assignment.keys())}
+
+def cnf_to_hyphen_negation_string(clauses_int, assignment_int=None, int_to_letter_map=None):
+    if not clauses_int and clauses_int == []: return "TRUE (Empty set of clauses)"
+    if not clauses_int : return "INVALID_FORMULA_STATE (Clauses object is None or unexpected)"
+
+    if assignment_int is None:
+        assignment_int = {} 
+    
+    output_clause_strings = []
+    for clause_int in clauses_int:
+        if not clause_int: 
+            return "FALSE (Contains empty clause)"
+        
+        literals_str_list = []
+        for literal_int_val in clause_int:
+            var_int_abs = abs(literal_int_val)
+            
+            var_name_str = f"x{var_int_abs}" 
+            if int_to_letter_map and var_int_abs in int_to_letter_map:
+                var_name_str = int_to_letter_map[var_int_abs]
+
+            literal_display_str = f"-{var_name_str}" if literal_int_val < 0 else var_name_str
+            
+            if var_int_abs in assignment_int:
+                assigned_val_bool = assignment_int[var_int_abs]
+                is_true_under_assignment = (literal_int_val > 0 and assigned_val_bool) or \
+                                           (literal_int_val < 0 and not assigned_val_bool)
+                
+                literal_display_str = f"({literal_display_str}=T*)" if is_true_under_assignment else f"({literal_display_str}=F*)"
+            literals_str_list.append(literal_display_str)
+        output_clause_strings.append("(" + " OR ".join(literals_str_list) + ")")
+    return " AND ".join(output_clause_strings)
+
+def apply_assignment(clauses, variable, value):
+    new_clauses = []
+    literal_true = variable if value else -variable
+    literal_false = -variable if value else variable
+    for clause in clauses:
+        if literal_true in clause:
+            continue 
+        new_clause = [l for l in clause if l != literal_false]
+        if not new_clause: 
+            return None 
+        new_clauses.append(new_clause)
+    return new_clauses
+
+def unit_propagate(clauses, assignment):
+    current_clauses = copy.deepcopy(clauses) 
+    current_assignment = copy.deepcopy(assignment)
+    
+    while True:
+        propagated_in_pass = False
+        
+        simplified_this_iteration = []
+        conflict_during_simplification = False
+        for original_clause_to_simplify in current_clauses: 
+            effective_literals_in_clause = []
+            is_clause_satisfied = False
+            for lit_in_clause in original_clause_to_simplify:
+                var_abs = abs(lit_in_clause)
+                if var_abs in current_assignment: 
+                    if (lit_in_clause > 0 and current_assignment[var_abs]) or \
+                       (lit_in_clause < 0 and not current_assignment[var_abs]):
+                        is_clause_satisfied = True 
+                        break
+                else: 
+                    effective_literals_in_clause.append(lit_in_clause)
+            
+            if is_clause_satisfied:
+                continue 
+
+            if not effective_literals_in_clause and original_clause_to_simplify: 
+                conflict_during_simplification = True
+                break
+            simplified_this_iteration.append(effective_literals_in_clause)
+        
+        if conflict_during_simplification:
+            return None, current_assignment 
+
+        current_clauses = simplified_this_iteration 
+        if not current_clauses: 
+            break
+
+        found_unit_to_propagate = False
+        for clause_to_scan_for_unit in current_clauses:
+            if len(clause_to_scan_for_unit) == 1:
+                unit_literal = clause_to_scan_for_unit[0]
+                var_to_assign = abs(unit_literal)
+                val_to_assign = unit_literal > 0
+
+                if var_to_assign in current_assignment: 
+                    if current_assignment[var_to_assign] != val_to_assign:
+                        return None, current_assignment 
+                else: 
+                    current_assignment[var_to_assign] = val_to_assign
+                    propagated_in_pass = True
+                    found_unit_to_propagate = True 
+                    break 
+        
+        if found_unit_to_propagate:
+            continue 
+
+        if not propagated_in_pass: 
+            break 
+
+    return current_clauses, current_assignment
+
+def pure_literal_assign(clauses, assignment):
+    current_clauses_pl = copy.deepcopy(clauses) 
+    current_assignment_pl = copy.deepcopy(assignment)
+    
+    while True: 
+        simplified_clauses_for_pl_scan = []
+        conflict_detected_pl = False
+        for cl_orig_pl in current_clauses_pl: 
+            temp_cl_effective_pl = []
+            is_satisfied_by_assignment_pl = False
+            for lit_pl in cl_orig_pl:
+                var_pl = abs(lit_pl)
+                if var_pl in current_assignment_pl:
+                    if (lit_pl > 0 and current_assignment_pl[var_pl]) or \
+                       (lit_pl < 0 and not current_assignment_pl[var_pl]):
+                        is_satisfied_by_assignment_pl = True
+                        break
+                else: 
+                    temp_cl_effective_pl.append(lit_pl)
+            
+            if is_satisfied_by_assignment_pl:
+                continue 
+            
+            if not temp_cl_effective_pl and cl_orig_pl: 
+                conflict_detected_pl = True
+                break
+            simplified_clauses_for_pl_scan.append(temp_cl_effective_pl)
+        
+        if conflict_detected_pl:
+            return None, current_assignment_pl
+
+        current_clauses_pl = simplified_clauses_for_pl_scan 
+        if not current_clauses_pl: 
+            break 
+
+        literals_present = set()
+        vars_in_active_clauses = set()
+        for cl_scan_pl in current_clauses_pl: 
+            for lit_scan_pl in cl_scan_pl:
+                literals_present.add(lit_scan_pl)
+                vars_in_active_clauses.add(abs(lit_scan_pl))
+        
+        if not vars_in_active_clauses: 
+            break
+
+        assigned_pure_in_pass = False
+        for var_candidate_pl in list(vars_in_active_clauses): 
+            is_positive_pure = var_candidate_pl in literals_present and -var_candidate_pl not in literals_present
+            is_negative_pure = -var_candidate_pl in literals_present and var_candidate_pl not in literals_present
+
+            if is_positive_pure:
+                current_assignment_pl[var_candidate_pl] = True
+                assigned_pure_in_pass = True
+                break 
+            elif is_negative_pure:
+                current_assignment_pl[var_candidate_pl] = False
+                assigned_pure_in_pass = True
+                break 
+        
+        if not assigned_pure_in_pass:
+            break 
+
+    return current_clauses_pl, current_assignment_pl
+
+def choose_variable_to_assign(clauses, assignment):
+    min_var = float('inf')
+    found_var_to_assign = False
+    for clause_item in clauses:
+        for literal_item in clause_item:
+            var_abs_item = abs(literal_item)
+            if var_abs_item not in assignment:
+                if var_abs_item < min_var: 
+                    min_var = var_abs_item
+                    found_var_to_assign = True
+    return min_var if found_var_to_assign else None
+
+def dpll(clauses_input, assignment_input, depth=0, int_to_letter_map_debug=None): 
+    clauses_after_up, assignment_after_up = unit_propagate(clauses_input, assignment_input)
+    if clauses_after_up is None: return False, None
+    
+    current_clauses_state, current_assignment_state = clauses_after_up, assignment_after_up
+
+    clauses_after_pl, assignment_after_pl = pure_literal_assign(current_clauses_state, current_assignment_state)
+    if clauses_after_pl is None: return False, None 
+    
+    clauses_after_pl_up, assignment_after_pl_up = unit_propagate(clauses_after_pl, assignment_after_pl)
+    if clauses_after_pl_up is None: return False, None
+
+    current_clauses_state, current_assignment_state = clauses_after_pl_up, assignment_after_pl_up
+    
+    if not current_clauses_state: return True, current_assignment_state 
+    if any(not cl_item for cl_item in current_clauses_state): return False, None 
+
+    variable_to_branch_on = choose_variable_to_assign(current_clauses_state, current_assignment_state)
+    if variable_to_branch_on is None:
+        return False, None 
+
+    assignment_for_true_branch = copy.deepcopy(current_assignment_state)
+    assignment_for_true_branch[variable_to_branch_on] = True
+    is_sat_true_branch, sat_assignment_true_branch = dpll(copy.deepcopy(current_clauses_state), assignment_for_true_branch, depth + 1, int_to_letter_map_debug)
+    if is_sat_true_branch: return True, sat_assignment_true_branch
+
+    assignment_for_false_branch = copy.deepcopy(current_assignment_state)
+    assignment_for_false_branch[variable_to_branch_on] = False
+    is_sat_false_branch, sat_assignment_false_branch = dpll(copy.deepcopy(current_clauses_state), assignment_for_false_branch, depth + 1, int_to_letter_map_debug)
+    if is_sat_false_branch: return True, sat_assignment_false_branch
+            
+    return False, None 
+
+def resolution(clause1_int_res, clause2_int_res, var_to_resolve_int_res):
+    literal_pos_res = var_to_resolve_int_res
+    literal_neg_res = -var_to_resolve_int_res
+    
+    c1_has_pos_res = literal_pos_res in clause1_int_res
+    c1_has_neg_res = literal_neg_res in clause1_int_res
+    c2_has_pos_res = literal_pos_res in clause2_int_res
+    c2_has_neg_res = literal_neg_res in clause2_int_res
+
+    if not ((c1_has_pos_res and c2_has_neg_res) or (c1_has_neg_res and c2_has_pos_res)):
+        return None 
+
+    current_clause1 = clause1_int_res
+    current_clause2 = clause2_int_res
+    if c1_has_neg_res: 
+        current_clause1, current_clause2 = clause2_int_res, clause1_int_res
+    
+    if not (literal_pos_res in current_clause1 and literal_neg_res in current_clause2):
+        return None 
+
+    resolvent_set = set()
+    for lit_res1 in current_clause1:
+        if lit_res1 != literal_pos_res:
+            resolvent_set.add(lit_res1)
+    for lit_res2 in current_clause2:
+        if lit_res2 != literal_neg_res:
+            if -lit_res2 in resolvent_set: 
+                return "TAUTOLOGY" 
+            resolvent_set.add(lit_res2)
+    
+    return sorted(list(resolvent_set))
+
+if __name__ == "__main__":
+    formula_str_input = input("Enter your formula: ")
+
+    try:
+        int_clauses, letter_to_int_map, int_to_letter_map = \
+            parse_cnf_string_with_hyphen_negation(formula_str_input)
+        
+        is_sat, final_int_assignment_result = dpll(int_clauses, {}, 0, int_to_letter_map)
+        
+        print(f"\nSatisfiable: {is_sat}")
+
+        if is_sat:
+            complete_int_assignment = {}
+            if final_int_assignment_result is None: 
+                final_int_assignment_result = {}
+                
+            for int_var_key in int_to_letter_map.keys(): 
+                if int_var_key in final_int_assignment_result:
+                    complete_int_assignment[int_var_key] = final_int_assignment_result[int_var_key]
+                else:
+                    complete_int_assignment[int_var_key] = True 
+            
+            letter_assignment_output = format_assignment_with_letters(complete_int_assignment, int_to_letter_map)
+            final_display_assignment = {}
+            for letter_key in int_to_letter_map.values():
+                final_display_assignment[letter_key] = letter_assignment_output.get(letter_key, True) 
+
+            print(f"Assignment: { {k: final_display_assignment[k] for k in sorted(final_display_assignment.keys())} }")
+
+    except ValueError as e:
+        print(f"Error processing formula: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        import traceback
+        traceback.print_exc()
